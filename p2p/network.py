@@ -29,6 +29,24 @@ class P2PNetwork:
         c = rng.randn(self.dimension).astype(np.float32)
         self.centroids[node.node_id] = c / np.linalg.norm(c)
 
+    def remove_node(self, node_id):
+        """
+        Simula a saída de um nó da rede P2P (Churn).
+        Remove o nó do overlay, limpa referências nos vizinhos e encerra seu banco de dados.
+        """
+        if node_id in self.node_map:
+            node = self.node_map[node_id]
+            # Remover referências na lista de peers dos vizinhos
+            for peer in node.peers:
+                if node in peer.peers:
+                    peer.peers.remove(node)
+            # Remover das estruturas da rede
+            self.nodes.remove(node)
+            del self.node_map[node_id]
+            if node_id in self.centroids:
+                del self.centroids[node_id]
+            node.close()
+
     def build_topology(self, k_neighbors=4):
         """
         Conecta os nós em uma malha P2P onde cada nó tem pelo menos k_neighbors conexões.
@@ -181,17 +199,26 @@ class P2PNetwork:
         Busca híbrida que combina Geometria (vetores) com Pistas (ponteiros de feromônio).
         Se o nó de partida possui um ponteiro para o video_id, ele pula direto para o nó apontado (se este estiver ativo).
         Caso contrário, cai na busca métrica descentralizada padrão.
+        
+        SELF-HEALING: Se o nó apontado pelo feromônio estiver offline (crashed/churned),
+        o nó atual apaga essa pista quebrada da sua tabela de feromônios e executa a busca vetorial
+        para localizar um novo seeder vivo na rede.
         """
         if video_id in start_node.pheromones:
             data = start_node.pheromones[video_id]
             target_id = data['pointer'] if isinstance(data, dict) else None
-            if target_id is not None and target_id in self.node_map:
-                target_node = self.node_map[target_id]
-                # Simular latência do salto direto (RTT) + consulta local
-                latency = self.get_ping_latency(start_node, target_node) + 0.002
-                local_results = target_node.search_local_knn(query_vec, k=k)
-                return local_results, 1, latency, target_id
-                
+            if target_id is not None:
+                if target_id in self.node_map:
+                    target_node = self.node_map[target_id]
+                    # Simular latência do salto direto (RTT) + consulta local
+                    latency = self.get_ping_latency(start_node, target_node) + 0.002
+                    local_results = target_node.search_local_knn(query_vec, k=k)
+                    return local_results, 1, latency, target_id
+                else:
+                    # SELF-HEALING: O nó de destino morreu!
+                    del start_node.pheromones[video_id]
+                    print(f"   [Self-Healing] Nó {start_node.node_id} detectou ponteiro quebrado para vídeo {video_id} (nó {target_id} offline). Removendo pista e caindo para busca vetorial...")
+                    
         # Fallback para a busca vetorial padrão
         return self.route_search_decentralized(start_node, query_vec, k=k, max_hops=max_hops, top_n_query_nodes=top_n_query_nodes)
 
@@ -213,9 +240,7 @@ class P2PNetwork:
         seeders = [node for node in self.nodes if video_id in node.hosted_videos]
         
         if not seeders:
-            # Se ninguém hospeda na rede, baixa do "origin server" (simulado como conexão 3G de fallback)
-            # ou assume que algum nó aleatório serve de semente inicial
-            seeders = [random.choice(self.nodes)]
+            raise ConnectionError(f"Video {video_id} has no active seeders in the P2P network (lost due to Churn)")
             
         # Latência de handshake inicial (RTT para o seeder mais próximo)
         pings = [self.get_ping_latency(client_node, s) for s in seeders]
@@ -248,7 +273,9 @@ class P2PNetwork:
         for node in self.nodes:
             if not node.pheromones:
                 continue
-            # Escolher um vizinho aleatório
+            # Escolher um vizinho aleatório se houver algum ativo
+            if not node.peers:
+                continue
             neighbor = random.choice(node.peers)
             for vid, data in node.pheromones.items():
                 if isinstance(data, dict):
