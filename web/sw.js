@@ -1,4 +1,4 @@
-const CACHE_NAME = 'peerhive-cache-v1';
+const CACHE_NAME = 'peerhive-cache-v2';
 const ASSETS = [
   './',
   './index.html',
