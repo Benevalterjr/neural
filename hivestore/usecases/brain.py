@@ -225,6 +225,25 @@ class HiveBrain:
             
         return results
 
+    def search_batch_hamming(self, queries, beam_width=5, n_entry_points=3, num_workers=None, pheromones=None, pheromone_weight=0.0):
+        from concurrent.futures import ThreadPoolExecutor
+        
+        if self.sentinels_matrix is None or len(self.sentinels_ids) == 0:
+            total_elements = self.store.c_buf._tail // self.store.c_stride
+            self.update_sentinels(k_sentinels=max(1, min(100, total_elements)))
+            if self.sentinels_matrix is None or len(self.sentinels_ids) == 0:
+                raise ValueError("O banco de dados está vazio. Adicione vetores antes de realizar buscas.")
+        
+        q_vecs = np.asarray(queries, dtype=np.float32)
+        
+        def search_single(q_vec):
+            return self.search_hamming(q_vec, beam_width, n_entry_points, pheromones, pheromone_weight)
+
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            results = list(executor.map(search_single, q_vecs))
+            
+        return results
+
     def find_neighbors(self, query, k=12, beam_width=5, n_entry_points=3, pheromones=None, pheromone_weight=0.0):
         total = self.store.c_buf._tail // self.store.c_stride
         if total == 0: return []

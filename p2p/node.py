@@ -89,9 +89,10 @@ class PeerNode:
         
         # Montar dict de feromônios locais mapeados para IDs locais
         local_pheromones = {}
-        for glob_id, phero_val in self.pheromones.items():
+        for glob_id, phero_data in self.pheromones.items():
             if glob_id in self.global_to_local:
-                local_pheromones[self.global_to_local[glob_id]] = phero_val
+                val = phero_data['val'] if isinstance(phero_data, dict) else phero_data
+                local_pheromones[self.global_to_local[glob_id]] = val
                 
         # Buscar vizinhos
         local_hits = self.brain.find_neighbors(
@@ -116,6 +117,22 @@ class PeerNode:
     def update_pheromone(self, video_id, value):
         """Atualiza a intensidade do feromônio local de um vídeo."""
         self.pheromones[video_id] = float(value)
+
+    def update_pheromone_with_pointer(self, video_id, value, source_node_id):
+        """
+        Atualiza o feromônio local com ponteiro que aponta para onde o vídeo está.
+        """
+        if video_id not in self.pheromones:
+            should_update = True
+        else:
+            curr_val = self.pheromones[video_id]['val'] if isinstance(self.pheromones[video_id], dict) else self.pheromones[video_id]
+            should_update = value > curr_val
+            
+        if should_update:
+            self.pheromones[video_id] = {
+                'val': float(value),
+                'pointer': source_node_id
+            }
 
     def close(self):
         """Fecha conexões e apaga bases locais."""

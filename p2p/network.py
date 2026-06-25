@@ -176,6 +176,25 @@ class P2PNetwork:
         
         return final_results, hops, total_latency, current_node.node_id
 
+    def route_search_v2(self, start_node, query_vec, video_id, k=3, max_hops=10, top_n_query_nodes=1):
+        """
+        Busca híbrida que combina Geometria (vetores) com Pistas (ponteiros de feromônio).
+        Se o nó de partida possui um ponteiro para o video_id, ele pula direto para o nó apontado (se este estiver ativo).
+        Caso contrário, cai na busca métrica descentralizada padrão.
+        """
+        if video_id in start_node.pheromones:
+            data = start_node.pheromones[video_id]
+            target_id = data['pointer'] if isinstance(data, dict) else None
+            if target_id is not None and target_id in self.node_map:
+                target_node = self.node_map[target_id]
+                # Simular latência do salto direto (RTT) + consulta local
+                latency = self.get_ping_latency(start_node, target_node) + 0.002
+                local_results = target_node.search_local_knn(query_vec, k=k)
+                return local_results, 1, latency, target_id
+                
+        # Fallback para a busca vetorial padrão
+        return self.route_search_decentralized(start_node, query_vec, k=k, max_hops=max_hops, top_n_query_nodes=top_n_query_nodes)
+
     def simulate_p2p_download(self, client_node, video_id, is_hnerv=True):
         """
         Simula a transferência P2P de mídias (HNeRV vs AV1).
@@ -221,24 +240,27 @@ class P2PNetwork:
         
         return total_time, len(seeders), effective_kbps / 8.0  # tempo, n_seeders, velocidade em KB/s
 
-    def gossip_pheromones(self):
+    def gossip_indices(self):
         """
-        Simula o Gossip Protocol de feromônios.
-        Periodicamente, os nós espalham seus feromônios locais para seus vizinhos P2P.
-        O feromônio recebido é mesclado com decaimento (ex: 80% do valor do vizinho).
+        Espalha a localização dos vídeos (ponteiros de feromônios) pela rede de forma epidêmica.
+        Isso cria redundância e ajuda nas buscas do tipo rastro de feromônios.
         """
         for node in self.nodes:
             if not node.pheromones:
                 continue
             # Escolher um vizinho aleatório
             neighbor = random.choice(node.peers)
-            # Passar feromônios com decaimento de propagação (gossip loss)
-            for vid, val in node.pheromones.items():
-                decayed_val = val * 0.8
-                # Manter o maior feromônio (local ou recebido)
-                curr = neighbor.pheromones.get(vid, 0.0)
-                if decayed_val > curr:
-                    neighbor.update_pheromone(vid, decayed_val)
+            for vid, data in node.pheromones.items():
+                if isinstance(data, dict):
+                    val = data['val']
+                    pointer = data['pointer']
+                else:
+                    val = data
+                    pointer = node.node_id
+                    
+                # Propaga com decaimento geométrico de 0.85
+                decayed_val = val * 0.85
+                neighbor.update_pheromone_with_pointer(vid, decayed_val, pointer)
 
     def close(self):
         for node in self.nodes:

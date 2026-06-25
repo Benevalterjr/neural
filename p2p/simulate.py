@@ -226,9 +226,12 @@ if __name__ == "__main__":
         query_vec = centroids_matrix[centroid_idx] + np.random.normal(0, 0.2, EMBED_DIM).astype(np.float32)
         query_vec /= np.linalg.norm(query_vec)
         
+        # Selecionar um vídeo alvo do cluster preferido do usuário para simular a busca híbrida (rastro vs vetor)
+        target_video_id = int(random.choice(np.where(video_labels == favorite_cluster)[0].tolist()))
+        
         t_search_start = time.time()
-        local_results_ph, hops_ph, search_latency_ph, end_node_id_ph = network_ph.route_search_decentralized(
-            client_node, query_vec, k=4, top_n_query_nodes=3
+        local_results_ph, hops_ph, search_latency_ph, end_node_id_ph = network_ph.route_search_v2(
+            client_node, query_vec, target_video_id, k=4, top_n_query_nodes=3
         )
         metrics["peerhive"]["search_latency"].append(search_latency_ph)
         metrics["peerhive"]["hops"].append(hops_ph)
@@ -253,12 +256,12 @@ if __name__ == "__main__":
         comp_ph = simulate_watch_completion(pref, video_labels[chosen_video_ph])
         metrics["peerhive"]["completions"].append(comp_ph)
         
-        # Atualizar feromônios locais (cúbico)
-        client_node.update_pheromone(chosen_video_ph, comp_ph ** 3)
+        # Atualizar feromônios locais com ponteiro (Gossip de Ponteiros)
+        client_node.update_pheromone_with_pointer(chosen_video_ph, comp_ph ** 3, client_node.node_id)
         client_node.host_video_payload(chosen_video_ph)
         
         if (req_idx + 1) % 50 == 0:
-            network_ph.gossip_pheromones()
+            network_ph.gossip_indices()
             
         if (req_idx + 1) % 200 == 0:
             avg_startup_ph = np.mean(metrics["peerhive"]["startup_latency"][-50:]) * 1000.0

@@ -121,8 +121,8 @@ if __name__ == "__main__":
     brain.update_sentinels(500) # Mais sentinelas para maior escala
     
     start_time = time.time()
-    # Executar busca paralela via ThreadPoolExecutor no HiveBrain
-    res_indices = brain.search_batch(test_embeddings, beam_width=10, n_entry_points=3)
+    # Executar busca paralela via ThreadPoolExecutor no HiveBrain usando distância Hamming
+    res_indices = brain.search_batch_hamming(test_embeddings, beam_width=10, n_entry_points=3)
     search_duration = time.time() - start_time
     
     hits = 0
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     brain_reopened.update_sentinels(500)
     
     start_time = time.time()
-    res_indices_reopened = brain_reopened.search_batch(test_embeddings, beam_width=10, n_entry_points=3)
+    res_indices_reopened = brain_reopened.search_batch_hamming(test_embeddings, beam_width=10, n_entry_points=3)
     search_duration_reopened = time.time() - start_time
     
     hits_reopened = 0
