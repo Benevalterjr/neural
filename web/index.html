@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PeerHive - P2P Neural Swarm Demo</title>
+  <!-- Google Fonts para tipografia premium -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Folha de estilo customizada -->
+  <link rel="stylesheet" href="style.css">
+  <!-- Configurações do PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6d28d9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PeerHive">
+</head>
+<body>
+
+  <!-- Background Blur para efeito Glassmorphism geral -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <header class="main-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="logo-icon">
+          <i data-lucide="zap"></i>
+        </div>
+        <div>
+          <h1>PeerHive</h1>
+          <p class="subtitle">Neural Video Swarm & Semantic Routing</p>
+        </div>
+      </div>
+      <div class="system-status">
+        <div class="status-indicator offline" id="net-status-dot"></div>
+        <span id="net-status-text">Desconectado</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <!-- COLUNA DA ESQUERDA: NETWORK & SWARM -->
+    <section class="panel-card glass-panel" id="network-panel">
+      <div class="panel-header">
+        <i data-lucide="share-2" class="text-violet"></i>
+        <h2>Conexão Swarm (P2P)</h2>
+      </div>
+
+      <!-- SEÇÃO DO SEU NÓ -->
+      <div class="peer-profile-card">
+        <h3>Seu ID de Nó:</h3>
+        <div class="id-badge-container">
+          <span class="id-badge" id="my-peer-id">Aguardando sinalização...</span>
+          <button class="btn-icon" id="btn-copy-id" title="Copiar ID" disabled>
+            <i data-lucide="copy"></i>
+          </button>
+        </div>
+
+        <div class="frictionless-connector" id="qr-container" style="display: none;">
+          <p class="connector-label">Zero Fricção: Escaneie no celular ou envie o link abaixo</p>
+          <div class="qr-code-wrapper">
+            <img id="qr-code-img" src="" alt="QR Code de Conexão">
+          </div>
+          <button class="btn btn-secondary" id="btn-copy-link">
+            <i data-lucide="link"></i>
+            Copiar Link de Auto-Conexão
+          </button>
+        </div>
+      </div>
+
+      <!-- FORMULÁRIO DE CONEXÃO -->
+      <div class="connect-form">
+        <h3>Conectar a outro Peer:</h3>
+        <div class="input-group">
+          <input type="text" id="target-peer-id" placeholder="Cole o ID do outro dispositivo..." autocomplete="off">
+          <button class="btn btn-primary" id="btn-connect" disabled>
+            <i data-lucide="plus"></i>
+            Conectar
+          </button>
+        </div>
+      </div>
+
+      <!-- LISTA DE PEERS VIZINHOS -->
+      <div class="peers-list-section">
+        <div class="list-header">
+          <h3>Vizinhos Ativos (<span id="active-peers-count">0</span>)</h3>
+          <span class="latency-label">RTT / Churn Sim</span>
+        </div>
+        <div class="peers-scroll-list" id="active-peers-list">
+          <div class="empty-state">
+            <i data-lucide="wifi-off"></i>
+            <p>Nenhum peer conectado no swarm local.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUNA DA DIREITA: DATABASE, INDEX & SEARCH -->
+    <div class="right-column-grid">
+      <!-- PAINEL 1: INDEXAR VÍDEO -->
+      <section class="panel-card glass-panel" id="index-panel">
+        <div class="panel-header">
+          <i data-lucide="database" class="text-emerald"></i>
+          <h2>Indexar Vídeo (HiveStore)</h2>
+        </div>
+        <div class="index-form">
+          <div class="input-group-vertical">
+            <label for="video-title">Título / Conteúdo Semântico</label>
+            <input type="text" id="video-title" placeholder="Ex: Gatinho fofo brincando com bola de lã...">
+          </div>
+          <div class="form-row">
+            <div class="input-group-vertical">
+              <label for="video-size-select">Payload do Vídeo</label>
+              <select id="video-size-select">
+                <option value="hnerv" selected>PeerHive - Pesos HNeRV (10 KB)</option>
+                <option value="traditional">Traditional - Arquivo AV1 (3.0 MB)</option>
+              </select>
+            </div>
+            <button class="btn btn-emerald align-end" id="btn-index-video">
+              <i data-lucide="upload-cloud"></i>
+              Indexar & Propagar
+            </button>
+          </div>
+          
+          <div class="local-db-summary">
+            <span>Seus arquivos indexados localmente:</span>
+            <ul class="local-files-list" id="local-files-list">
+              <li class="empty-list">Nenhum vídeo hospedado neste nó.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAINEL 2: BUSCA SEMÂNTICA -->
+      <section class="panel-card glass-panel" id="search-panel">
+        <div class="panel-header">
+          <i data-lucide="search" class="text-cyan"></i>
+          <h2>Busca Semântica Híbrida</h2>
+        </div>
+        <div class="search-form">
+          <div class="input-group">
+            <input type="text" id="search-query" placeholder="Digite conceitos, ex: gato, tutorial, fofo...">
+            <button class="btn btn-cyan" id="btn-search">
+              <i data-lucide="search"></i>
+              Buscar
+            </button>
+          </div>
+        </div>
+
+        <div class="search-results-section">
+          <h3>Resultados da Rede</h3>
+          <div class="results-container" id="search-results-list">
+            <div class="empty-state">
+              <i data-lucide="compass"></i>
+              <p>Digite uma busca e explore a rede semântica.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- PAINEL INFERIOR: GRÁFICOS COMPARATIVOS DE DOWNLOAD & LOGS DO PROTOCOLO -->
+  <footer class="bottom-grid">
+    <!-- COMPARATIVO DE PERFORMANCE -->
+    <section class="panel-card glass-panel" id="performance-panel">
+      <div class="panel-header">
+        <i data-lucide="trending-up" class="text-pink"></i>
+        <h2>Comparador de Performance (Tempo Real)</h2>
+      </div>
+      
+      <div class="download-simulation-wrapper">
+        <div class="sim-metric-card" id="peerhive-card">
+          <div class="card-title-row">
+            <span class="badge badge-hive">PeerHive (Neural HNeRV)</span>
+            <span class="metric-val" id="hive-time-val">0ms</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar bar-hive" id="hive-progress" style="width: 0%"></div>
+          </div>
+          <div class="card-footer-row">
+            <span>Tamanho: <strong class="text-hive">10 KB</strong></span>
+            <span>Banda Usada: <strong class="text-hive" id="hive-bytes-val">0 KB</strong></span>
+          </div>
+        </div>
+
+        <div class="sim-metric-card" id="peertube-card">
+          <div class="card-title-row">
+            <span class="badge badge-tube">PeerTube Tradicional (AV1)</span>
+            <span class="metric-val" id="tube-time-val">0ms</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar bar-tube" id="tube-progress" style="width: 0%"></div>
+          </div>
+          <div class="card-footer-row">
+            <span>Tamanho: <strong class="text-tube">3.0 MB</strong></span>
+            <span>Banda Usada: <strong class="text-tube" id="tube-bytes-val">0 MB</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="comparison-summary" id="comparison-analysis" style="display: none;">
+        <i data-lucide="zap" class="text-yellow pulse"></i>
+        <p id="comparison-text">Carregamento concluído.</p>
+      </div>
+    </section>
+
+    <!-- LIVE LOGS CONSOLE -->
+    <section class="panel-card glass-panel" id="console-panel">
+      <div class="panel-header header-between">
+        <div class="flex-align">
+          <i data-lucide="terminal" class="text-purple"></i>
+          <h2>Console do Protocolo P2P</h2>
+        </div>
+        <button class="btn-clear" id="btn-clear-console" title="Limpar Console">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </div>
+      <div class="console-wrapper" id="console-log-area">
+        <div class="log-line system">[SISTEMA] Inicializando PeerHive PWA...</div>
+        <div class="log-line info">[INFO] Conectando ao servidor de sinalização PeerJS Cloud gratuito...</div>
+      </div>
+    </section>
+  </footer>
+
+  <!-- Bibliotecas externas -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Lógica da aplicação -->
+  <script src="app.js"></script>
+  <script>
+    // Inicializa ícones do Lucide
+    lucide.createIcons();
+  </script>
+</body>
+</html>

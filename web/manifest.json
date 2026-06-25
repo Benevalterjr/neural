@@ -1,0 +1,24 @@
+{
+  "short_name": "PeerHive",
+  "name": "PeerHive - P2P Neural Video Swarm",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/nolan/192/zap.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://img.icons8.com/nolan/512/zap.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#050508",
+  "theme_color": "#6d28d9",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "description": "Demonstrador de Swarm Neural P2P interativo usando busca semântica, Index Gossip e Self-Healing com WebRTC."
+}
