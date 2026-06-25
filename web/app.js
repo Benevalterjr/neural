@@ -224,34 +224,68 @@ function sendPing(peerId) {
    LÓGICA HIVESTORE & EMBEDDINGS (MOCK VETORIAL)
    ========================================================================== */
 
-// Gera um embedding de 128-dim consistente para um texto
+// Gera um embedding de 128-dim consistente para um texto com base em termos individuais
 function getEmbeddingForText(text) {
-  // LCG Pseudo-Random Number Generator baseado em hash simples da string
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = text.charCodeAt(i) + ((hash << 5) - hash);
-  }
+  if (!text) return new Array(EMBEDDING_DIM).fill(0);
   
-  const vec = [];
-  let seed = hash;
+  // Limpar texto e quebrar em palavras
+  const cleanText = text.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/[^a-z0-9\s]/g, ""); // remove caracteres especiais
   
-  // Função pseudo-aleatória determinística
-  const nextRand = () => {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    return (seed / 0x7fffffff) * 2 - 1; // Entre -1.0 e 1.0
+  const words = cleanText.split(/\s+/).filter(w => w.length > 1);
+  if (words.length === 0) words.push("default");
+
+  // Dicionário de normalização semântica simples (mock de NLP)
+  const normalizeWord = (word) => {
+    if (word.includes("gat")) return "gato";
+    if (word.includes("neural") || word === "snn" || word === "rwkv" || word.includes("neuron")) return "neural";
+    if (word.includes("vid") || word === "filme" || word === "clip") return "video";
+    if (word.includes("branc") || word === "white") return "branco";
+    if (word.includes("brinc") || word.includes("jog")) return "brincar";
+    if (word.includes("tut") || word.includes("como")) return "tutorial";
+    return word;
   };
 
-  for (let i = 0; i < EMBEDDING_DIM; i++) {
-    vec.push(nextRand());
+  // Vetor acumulador
+  const sumVec = new Array(EMBEDDING_DIM).fill(0);
+
+  words.forEach(rawWord => {
+    const word = normalizeWord(rawWord);
+    
+    // Hash determinístico da palavra
+    let hash = 0;
+    for (let i = 0; i < word.length; i++) {
+      hash = word.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    let seed = hash;
+    const nextRand = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return (seed / 0x7fffffff) * 2 - 1;
+    };
+
+    // Gera vetor da palavra
+    const wordVec = [];
+    for (let i = 0; i < EMBEDDING_DIM; i++) {
+      wordVec.push(nextRand());
+    }
+
+    // Acumula no sumVec
+    for (let i = 0; i < EMBEDDING_DIM; i++) {
+      sumVec[i] += wordVec[i];
+    }
+  });
+
+  // Normaliza o vetor acumulado final
+  let norm = 0;
+  for (let i = 0; i < EMBEDDING_DIM; i++) norm += sumVec[i] * sumVec[i];
+  norm = Math.sqrt(norm);
+  if (norm > 0) {
+    for (let i = 0; i < EMBEDDING_DIM; i++) sumVec[i] /= norm;
   }
 
-  // Normalizar vetor (Norma Euclidiana = 1)
-  let norm = 0;
-  for (let i = 0; i < EMBEDDING_DIM; i++) norm += vec[i] * vec[i];
-  norm = Math.sqrt(norm);
-  for (let i = 0; i < EMBEDDING_DIM; i++) vec[i] /= norm;
-
-  return vec;
+  return sumVec;
 }
 
 // Similaridade de cosseno
