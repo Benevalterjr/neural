@@ -1,0 +1,33 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+
+# Cython generated C files (optional, but usually rebuilt on target machines)
+hivestore/infrastructure/cython_ops/*.c
+hivestore/infrastructure/cython_ops/*.html
+hivestore/infrastructure/cython_ops/*.pyd
+hivestore/infrastructure/cython_ops/*.so
+build/
+
+# Simulation databases and temporary files
+sim_p2p_dbs/
+sim_video_storage/
+sim_hive_*
+sim_video_*
+*meta.json
+*.dat
+
+# IDE and System files
+.vscode/
+.idea/
+.DS_Store
+.agents/
+.gemini/
